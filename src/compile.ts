@@ -11,11 +11,11 @@ export default function compileDocs(): void {
     deadLineFolderPath() == ""
       ? vscode.workspace.workspaceFolders?.[0].name
       : vscode.workspace.workspaceFolders?.[0].name +
-        "-" +
-        path.basename(deadLineFolderPath());
+      "-" +
+      path.basename(deadLineFolderPath());
   const projectPath = vscode.workspace.workspaceFolders?.[0].uri.fsPath;
   const config = getConfig();
-  const separatorString = "\n\n　　　" + config.separator + "\n\n";
+  const separatorString = "\n\n" + config.separator + "\n\n";
   const draftRootPath =
     deadLineFolderPath() == "" ? draftRoot() : deadLineFolderPath();
 
@@ -38,16 +38,54 @@ export default function compileDocs(): void {
   }
 
   //  テキストを書き込む
-  const filelist = fileList(draftRootPath).files;
-  filelist.forEach((listItem: { dir?: string; depthIndicator?: number }) => {
-    let appendingContext = "";
-    if (listItem.dir) {
-      appendingContext = fs.readFileSync(listItem.dir, "utf8");
-    } else if (listItem.depthIndicator) {
-      appendingContext = separatorString;
+  const filelist = getFileList(draftRootPath).files;
+
+  function generateText(
+    fileOrDir: FileOrDir,
+    hasSubDir: boolean,
+    isFirstInDir: boolean,
+  ): string[] {
+    const result: string[] = [];
+    if (fileOrDir instanceof File) {
+      if (!isFirstInDir && !hasSubDir) {
+        console.log("add *:" + fileOrDir.filepath + hasSubDir);
+        result.push(separatorString);
+      }
+      const content = fs.readFileSync(fileOrDir.filepath, "utf8");
+      // 前後の空白行を削除
+      const contentTrim = content.replace(/^\s+|\s+$/g, '');
+      result.push(contentTrim);
     }
-    fs.appendFileSync(compiledTextFilePath, appendingContext);
-  });
+    if (fileOrDir instanceof Dir) {
+      const content = fileOrDir.files.flatMap((e, index) => generateText(
+        e,
+        fileOrDir.hasSubDir,
+        index == 0,
+      ));
+      // 前後に空白行を追加
+      const contentWrapBlank = ["\n\n", ...content, "\n\n"];
+      result.splice(result.length, 0, ...contentWrapBlank);
+    }
+    return result;
+  }
+
+  // 同じ階層にサブディレクトリがあるかどうか
+  const hasSubDir = filelist.some((e) => e instanceof Dir);
+
+  const content = filelist.reduce((prev: string, listItem: FileOrDir, index: number) => {
+    const text = generateText(
+      listItem,
+      hasSubDir,
+      index == 0,
+    );
+    return [prev, ...text].join("");
+  },
+    "",
+  );
+
+  // 前後の空白行を削除
+  const contentTrim = content.replace(/^\s+|\s+$/g, '');
+  fs.appendFileSync(compiledTextFilePath, contentTrim);
   //console.log(fileList(draftRootPath, 0).files);
 }
 
@@ -78,75 +116,120 @@ export function draftRoot(): string {
   }
 }
 
-type File = {
-  dir?: string;
-  name?: string;
-  length?: number;
-  directoryName?: string;
-  directoryLength?: number;
-  depthIndicator?: number;
+abstract class FileOrDir {
+  constructor(
+    public dir: string,
+    public name: string,
+    public charCount: number,
+  ) { }
+
+  get filepath(): string {
+    return path.join(this.dir, this.name).normalize('NFC');
+  }
+}
+
+class File extends FileOrDir {
+  constructor(
+    dir: string,
+    name: string,
+    charCount: number,
+  ) {
+    super(dir, name, charCount);
+  }
 };
+
+class Dir extends FileOrDir {
+  constructor(
+    dir: string,
+    name: string,
+    public files: FileOrDir[],
+  ) {
+    const charCount = files.reduce((prev: number, current: FileOrDir) => prev + current.charCount, 0);
+    super(dir, name, charCount);
+  }
+
+  get hasSubDir(): boolean {
+    return this.files.some((e) => e instanceof Dir);
+  }
+}
 
 type FileList = {
   label: string;
-  files: File[];
+  files: FileOrDir[];
+  flattenFiles: File[];
   length: number;
 };
 
 //fileList()は、ファイルパスと（再帰処理用の）ディレクトリ深度を受け取って、ファイルリストの配列と総文字数を返す。
-export function fileList(dirPath: string): FileList {
-  let characterCount = 0;
-  const filesInFolder = getFiles(dirPath);
+export function getFileList(dirPath: string): FileList {
+  function createInstanceFileOrDir(dirPath: string): FileOrDir[] {
+    const filesInFolder = getFiles(dirPath);
+    const files: FileOrDir[] = [];
 
-  //  console.log("files from system:", filesInFolder);
+    for (const dirent of filesInFolder) {
+      console.log(dirent.name);
+      console.log(dirent.name);
+      if (dirent.isDirectory() && dirent.name == "publish") {
+        //console.log("publish folder");
+      } else if (dirent.name.match(/^\..*/)) {
+        //console.log("invisible docs");
+      } else if (dirent.isDirectory()) {
+        const subDirPath = path.join(dirPath, dirent.name);
 
-  const labelOfList = path.basename(dirPath);
-  const files: File[] = [];
+        files.push(new Dir(
+          dirPath,
+          dirent.name,
+          createInstanceFileOrDir(subDirPath),
+        ));
+      } else if (
+        dirent.isFile() &&
+        [getConfig().draftFileType].includes(path.extname(dirent.name))
+      ) {
+        //文字数カウントテスト
+        let readingFile = fs.readFileSync(
+          path.join(dirPath, dirent.name),
+          "utf-8"
+        );
+        //カウントしない文字を除外 from https://github.com/8amjp/vsce-charactercount by MIT license
+        readingFile = readingFile
+          .replace(/\s/g, "") // すべての空白文字
+          .replace(/《(.+?)》/g, "") // ルビ範囲指定記号とその中の文字
+          .replace(/[|｜]/g, "") // ルビ開始記号
+          .replace(/<!--(.+?)-->/, ""); // コメントアウト
 
-  for (const dirent of filesInFolder) {
-    if (dirent.isDirectory() && dirent.name == "publish") {
-      //console.log("publish folder");
-    } else if (dirent.name.match(/^\..*/)) {
-      //console.log("invisible docs");
-    } else if (dirent.isDirectory()) {
-      const fp = path.join(dirPath, dirent.name);
-      const containerFiles = fileList(fp);
-
-      files.push({
-        directoryName: dirent.name,
-        directoryLength: containerFiles.length,
-      });
-
-      characterCount += containerFiles.length;
-      files.push(containerFiles.files);
-    } else if (
-      dirent.isFile() &&
-      [getConfig().draftFileType].includes(path.extname(dirent.name))
-    ) {
-      //文字数カウントテスト
-      let readingFile = fs.readFileSync(
-        path.join(dirPath, dirent.name),
-        "utf-8"
-      );
-      //カウントしない文字を除外 from https://github.com/8amjp/vsce-charactercount by MIT license
-      readingFile = readingFile
-        .replace(/\s/g, "") // すべての空白文字
-        .replace(/《(.+?)》/g, "") // ルビ範囲指定記号とその中の文字
-        .replace(/[|｜]/g, "") // ルビ開始記号
-        .replace(/<!--(.+?)-->/, ""); // コメントアウト
-      files.push({
-        dir: path.join(dirPath, dirent.name).normalize('NFC'),
-        name: dirent.name,
-        length: readingFile.length,
-      });
-      characterCount += readingFile.length;
+        files.push(new File(
+          dirPath,
+          dirent.name,
+          readingFile.length,
+        ));
+      }
     }
+
+    return files;
   }
+
+  function flattenFiles(fileOrDir: FileOrDir[]): File[] {
+    const files: File[] = [];
+    for (const f of fileOrDir) {
+      if (f instanceof File) {
+        files.push(f);
+      }
+      if (f instanceof Dir) {
+        const subDirFiles = flattenFiles(f.files);
+        files.splice(files.length, 0, ...subDirFiles);
+      }
+    }
+    return files;
+  }
+
+  const fileOrDir = createInstanceFileOrDir(dirPath);
+
   //ファイルリストの配列と総文字数を返す
   return {
-    label: labelOfList,
-    files: files.flat(),
-    length: characterCount,
+    label: path.basename(dirPath),
+    files: fileOrDir,
+    flattenFiles: flattenFiles(fileOrDir),
+    length: fileOrDir.reduce((prev, current) => prev + current.charCount, 0),
   };
 }
 
@@ -227,11 +310,11 @@ export function draftsObject(dirPath: string): FileNode[] {
         name: dirent.name,
         length: readingFile.length,
       };
-      
+
       results.push(fileNode);
     }
   }
-  
+
   return results;
 }
 
@@ -244,7 +327,7 @@ export function totalLength(dirPath: string): number {
   return result;
 }
 
-export function ifFileInDraft(DocumentPath: string|undefined): boolean {
+export function ifFileInDraft(DocumentPath: string | undefined): boolean {
   if (draftRoot() == "") {
     return false;
   }

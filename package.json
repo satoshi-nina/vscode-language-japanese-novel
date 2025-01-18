@@ -162,6 +162,11 @@
     "configuration": {
       "title": "Novel-writer設定",
       "properties": {
+        "Novel.compile.separator" : {
+          "type": "string",
+          "default": "＊",
+          "description": "原稿の区切り文字を設定します"
+        },
         "Novel.DraftTree.renumber": {
           "type": "boolean",
           "default": false,
