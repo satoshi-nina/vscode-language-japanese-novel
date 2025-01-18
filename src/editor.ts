@@ -1,6 +1,6 @@
 import * as vscode from "vscode";
 import { getConfig } from "./config";
-import { draftRoot, fileList, ifFileInDraft } from "./compile";
+import { draftRoot, getFileList, ifFileInDraft } from "./compile";
 
 export type OriginEditor = vscode.TextEditor | "active" | undefined;
 
@@ -355,10 +355,10 @@ async function getBesideText(document: vscode.TextDocument): Promise<{
       nextText: "",
     };
   }
-  const myFileList = fileList(draftRoot());
-  const docIndex = myFileList.files.findIndex(
+  const myFileList = getFileList(draftRoot()).flattenFiles;
+  const docIndex = myFileList.findIndex(
     // (e) => e.dir == document.fileName
-    (e) => e.dir?.normalize("NFC") == document.fileName.normalize("NFC")
+    (e) => e.filepath?.normalize("NFC") == document.fileName.normalize("NFC")
   );
   let prevDocIndex = null;
   let nextDocIndex = null;
@@ -373,7 +373,7 @@ async function getBesideText(document: vscode.TextDocument): Promise<{
   //前のシーンファイルを探索
   let prevSearchIndex = docIndex - 1;
   while (prevSearchIndex >= 0) {
-    if (myFileList.files[prevSearchIndex].dir) {
+    if (myFileList[prevSearchIndex].filepath) {
       // console.log("prevDoc in loop", myFileList.files[prevSearchIndex]);
       prevDocIndex = prevSearchIndex;
       break;
@@ -384,8 +384,8 @@ async function getBesideText(document: vscode.TextDocument): Promise<{
 
   //次のファイルを探索
   let nextSearchIndex = docIndex + 1;
-  while (nextSearchIndex < myFileList.files.length) {
-    if (myFileList.files[nextSearchIndex].dir) {
+  while (nextSearchIndex < myFileList.length) {
+    if (myFileList[nextSearchIndex].filepath) {
       // console.log("nextDoc in loop", myFileList.files[nextSearchIndex]);
       nextDocIndex = nextSearchIndex;
       break;
@@ -397,20 +397,20 @@ async function getBesideText(document: vscode.TextDocument): Promise<{
   // 前のファイルが有効な場合
   if (prevDocIndex != null) {
     // console.log("nextDoc", myFileList.files[prevDocIndex]);
-    prevDocUrl = vscode.Uri.file(myFileList.files[prevDocIndex].dir!);
+    prevDocUrl = vscode.Uri.file(myFileList[prevDocIndex].filepath);
     const nextDocData = await vscode.workspace.fs.readFile(prevDocUrl);
     const dataString = Buffer.from(nextDocData).toString("utf8");
-    prevDocTitle = "前のシーン：" + myFileList.files[prevDocIndex].name;
+    prevDocTitle = "前のシーン：" + myFileList[prevDocIndex].name;
     prevDocText = dataString;
   }
 
   // 次のファイルが有効な場合
   if (nextDocIndex != null) {
     // console.log("nextDoc", myFileList.files[nextDocIndex]);
-    nextDocUrl = vscode.Uri.file(myFileList.files[nextDocIndex].dir!);
+    nextDocUrl = vscode.Uri.file(myFileList[nextDocIndex].filepath);
     const nextDocData = await vscode.workspace.fs.readFile(nextDocUrl);
     const dataString = Buffer.from(nextDocData).toString("utf8");
-    nextDocTitle = "次のシーン：" + myFileList.files[nextDocIndex].name;
+    nextDocTitle = "次のシーン：" + myFileList[nextDocIndex].name;
     nextDocText = dataString;
   }
 
