@@ -14,8 +14,6 @@ Visual Studio Codeで小説を執筆するための機能拡張です。
 - [Sponsors](#sponsors)
 - [付録](#appendix)
 
-
-
 ![カラーリング](https://github.com/ttrace/vscode-language-japanese-novel/raw/main/resource/highlight-and-vertical.png)
 
 GitHubスポンサー
@@ -129,6 +127,8 @@ Gitを利用しているときにファイルの連番を変更すると、た�
 バインダーで任意のフォルダーを［締切フォルダー］に指定すると、そのフォルダーに含まれる文字数だけを表示することができます。  
 連載原稿の文字数を数えることも可能です。目標の文字数も設定できるようになりました。
 
+目標の文字数を原稿用紙の枚数で指定することも可能です。
+
 ![特定フォルダーの文字数カウント](https://github.com/ttrace/vscode-language-japanese-novel/raw/main/resource/counting-custom-folder.png)
 
 原稿のコンパイルを実行すると、締め切りフォルダー内のテキストファイルを結合します。
@@ -137,7 +137,16 @@ Gitを利用しているときにファイルの連番を変更すると、た�
 
 現在編集中のファイルの文字数と、ワークスペースにあるテキストファイル全てを合算した文字数をステータスバーに表示することができます。ワークスペースに「原稿」あるいは「Draft」という名称のフォルダーがある場合には、そのフォルダーの中だけを計算します。
 
-Gitでファイルの履歴を管理している場合には、前日から現在までの編集距離をリアルタイムに表示します。  
+原稿の文字数は、400文字詰原稿用紙換算でも表示できます。
+
+![文字数カウントの表示](https://github.com/ttrace/vscode-language-japanese-novel/raw/main/resource/display-count-of-draft.png)
+![原稿ツリーでのカウント表示](https://github.com/ttrace/vscode-language-japanese-novel/raw/main/resource/display-count-on-tree.png)
+
+#### 進捗・編集距離表示
+
+執筆時点の、前日に対する総文字数の進捗を表示できます。
+
+また、Gitでファイルの履歴を管理している場合には、前日から現在までの編集距離をリアルタイムに表示します。  
 改稿した分量を把握するのにお使いください。
 
 ![編集距離](https://github.com/ttrace/vscode-language-japanese-novel/raw/main/resource/edit-distance.png)
@@ -189,11 +198,7 @@ Contributed by [yasudaz](https://github.com/yasudaz)](https://github.com/yasudaz
 
 ## PDF Features
 
-novel-writerは[Vivliostyle/CLI](https://vivliostyle.org/ja/)を用いて、選択しているテキストファイルのA5変型版（130mm×190mm）の縦書きPDFを出力します。以下のコマンドをでVivlioStyleをインストールしてからPDF出力を実行してください。
-
-```
-npm install @vivliostyle/cli -g
-```
+novel-writerは[Vivliostyle/CLI](https://vivliostyle.org/ja/)を用いて、選択しているテキストファイルのA5変型版（130mm×190mm）の縦書きPDFを出力します。
 
 1行が短く、ページあたりの行数が長い場合には段組で印刷します。
 
@@ -276,7 +281,6 @@ MIT
 ## Sponsors
 [GitHub Sponsors](https://github.com/sponsors/ttrace)でご支援いただいている方々です
 
-[![bills-appworks](https://github.com/bills-appworks.png?size=24)](https://github.com/bills-appworks)
 [![haoblackj](https://github.com/haoblackj.png?size=24)](https://github.com/haoblackj)
 [![suzukin](https://github.com/suzukin.png?size=24)](https://github.com/suzukin)
 [![kento-oka](https://github.com/kento-oka.png?size=24)](https://github.com/kento-oka)

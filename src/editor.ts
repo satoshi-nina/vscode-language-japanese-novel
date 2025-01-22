@@ -1,6 +1,6 @@
 import * as vscode from "vscode";
 import { getConfig } from "./config";
-import { draftRoot, getFileList, ifFileInDraft } from "./compile";
+import { draftRoot, draftsObject, getFileList, ifFileInDraft } from "./compile";
 
 export type OriginEditor = vscode.TextEditor | "active" | undefined;
 
@@ -355,7 +355,9 @@ async function getBesideText(document: vscode.TextDocument): Promise<{
       nextText: "",
     };
   }
-  const myFileList = getFileList(draftRoot()).flattenFiles;
+  const myFileList = getFileList(draftRoot()).files;
+  // console.log("fileList",myFileList);
+  // console.log("draftsObject",draftsObject(draftRoot()));
   const docIndex = myFileList.findIndex(
     // (e) => e.dir == document.fileName
     (e) => e.filepath?.normalize("NFC") == document.fileName.normalize("NFC")
